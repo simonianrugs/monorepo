@@ -9,9 +9,10 @@ interface StatsBarProps {
 export default function StatsBar({ tools }: StatsBarProps) {
   const total = tools.length;
   const connected = tools.filter((t) => t.status === "connected").length;
-  const withData = tools.filter(
-    (t) => t.status === "connected" && t.dataEndpoints
-  ).length;
+  const totalDeepLinks = tools.reduce(
+    (sum, t) => sum + t.deepLinks.length,
+    0
+  );
   const totalEndpoints = tools
     .filter((t) => t.status === "connected")
     .reduce((sum, t) => sum + (t.dataEndpoints?.length ?? 0), 0);
@@ -19,12 +20,8 @@ export default function StatsBar({ tools }: StatsBarProps) {
   const stats = [
     { label: "Total Tools", value: total, color: "text-gray-900" },
     { label: "Connected", value: connected, color: "text-green-600" },
-    { label: "Data Sources Active", value: withData, color: "text-blue-600" },
-    {
-      label: "Data Endpoints",
-      value: totalEndpoints,
-      color: "text-purple-600",
-    },
+    { label: "Deep Links", value: totalDeepLinks, color: "text-blue-600" },
+    { label: "Live Data Endpoints", value: totalEndpoints, color: "text-purple-600" },
   ];
 
   return (

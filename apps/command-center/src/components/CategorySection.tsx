@@ -16,6 +16,7 @@ export default function CategorySection({
 }: CategorySectionProps) {
   const categoryInfo = TOOL_CATEGORIES[category];
   const connectedCount = tools.filter((t) => t.status === "connected").length;
+  const totalLinks = tools.reduce((s, t) => s + t.deepLinks.length, 0);
 
   return (
     <section className="mb-10">
@@ -26,11 +27,16 @@ export default function CategorySection({
           </h2>
           <p className="text-sm text-gray-500">{categoryInfo.description}</p>
         </div>
-        <span className="text-sm text-gray-400">
-          {connectedCount}/{tools.length} connected
-        </span>
+        <div className="text-right">
+          <span className="text-sm text-gray-400">
+            {connectedCount}/{tools.length} connected
+          </span>
+          <span className="ml-3 text-sm text-blue-400">
+            {totalLinks} deep links
+          </span>
+        </div>
       </div>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {tools.map((tool) => (
           <ToolCard
             key={tool.id}

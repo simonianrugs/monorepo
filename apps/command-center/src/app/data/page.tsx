@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { TOOLS, Tool } from "@/lib/tools";
 import Link from "next/link";
+import { TOOLS, Tool } from "@/lib/tools";
 
 interface DataPipeline {
   toolId: string;
@@ -14,7 +14,24 @@ interface DataPipeline {
 
 export default function DataPipelinePage() {
   const [tools] = useState<Tool[]>(TOOLS);
-  const [pipelines, setPipelines] = useState<DataPipeline[]>([]);
+  const [pipelines, setPipelines] = useState<DataPipeline[]>(() => {
+    // Auto-enable pipelines for connected tools
+    const auto: DataPipeline[] = [];
+    for (const tool of TOOLS) {
+      if (tool.status === "connected" && tool.dataEndpoints) {
+        for (const ep of tool.dataEndpoints) {
+          auto.push({
+            toolId: tool.id,
+            endpoint: ep,
+            enabled: true,
+            schedule: "daily",
+            lastSync: "2026-04-11 08:00 AM",
+          });
+        }
+      }
+    }
+    return auto;
+  });
 
   const toolsWithData = tools.filter(
     (t) => t.dataEndpoints && t.dataEndpoints.length > 0
@@ -38,7 +55,7 @@ export default function DataPipelinePage() {
           toolId,
           endpoint,
           enabled: true,
-          schedule: "daily",
+          schedule: "daily" as const,
           lastSync: null,
         },
       ];
@@ -62,6 +79,12 @@ export default function DataPipelinePage() {
   const getPipeline = (toolId: string, endpoint: string) =>
     pipelines.find((p) => p.toolId === toolId && p.endpoint === endpoint);
 
+  const enabledCount = pipelines.filter((p) => p.enabled).length;
+  const totalEndpoints = toolsWithData.reduce(
+    (sum, t) => sum + (t.dataEndpoints?.length ?? 0),
+    0
+  );
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-gray-200 bg-white">
@@ -72,31 +95,43 @@ export default function DataPipelinePage() {
                 Data Pipeline Configuration
               </h1>
               <p className="mt-1 text-sm text-gray-500">
-                Configure which data to pull from your connected tools
+                Configure which data flows from your tools into the command
+                center
               </p>
             </div>
-            <Link
-              href="/"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-            >
-              ← Back to Dashboard
-            </Link>
+            <div className="flex gap-3">
+              <Link
+                href="/"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                ← Command Center
+              </Link>
+              <Link
+                href="/operations"
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Operations
+              </Link>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Pipeline Stats */}
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {/* Stats */}
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <p className="text-sm font-medium text-gray-500">Data Sources</p>
+            <p className="mt-1 text-2xl font-bold text-gray-900">
+              {toolsWithData.length}
+            </p>
+          </div>
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-500">
-              Available Pipelines
+              Total Endpoints
             </p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {toolsWithData.reduce(
-                (sum, t) => sum + (t.dataEndpoints?.length ?? 0),
-                0
-              )}
+            <p className="mt-1 text-2xl font-bold text-blue-600">
+              {totalEndpoints}
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -104,126 +139,151 @@ export default function DataPipelinePage() {
               Active Pipelines
             </p>
             <p className="mt-1 text-2xl font-bold text-green-600">
-              {pipelines.filter((p) => p.enabled).length}
+              {enabledCount}
             </p>
           </div>
           <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            <p className="text-sm font-medium text-gray-500">
-              Data Sources Ready
-            </p>
-            <p className="mt-1 text-2xl font-bold text-blue-600">
-              {toolsWithData.length}
+            <p className="text-sm font-medium text-gray-500">Coverage</p>
+            <p className="mt-1 text-2xl font-bold text-purple-600">
+              {totalEndpoints > 0
+                ? Math.round((enabledCount / totalEndpoints) * 100)
+                : 0}
+              %
             </p>
           </div>
         </div>
 
-        {/* Info Banner */}
-        <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 p-4">
+        {/* How it works */}
+        <div className="mb-8 rounded-xl border border-blue-200 bg-blue-50 p-5">
           <h3 className="font-semibold text-blue-900">
             How Data Pipelines Work
           </h3>
-          <p className="mt-1 text-sm text-blue-700">
-            Once you connect a tool on the main dashboard, enable its data
-            endpoints here to start pulling data into your command center. Choose
-            a sync schedule that fits your needs. Data will appear on your
-            dashboard in real-time once pipelines are active.
+          <ol className="mt-2 list-inside list-decimal space-y-1 text-sm text-blue-700">
+            <li>
+              <strong>Connect</strong> a tool on the main dashboard (green
+              status)
+            </li>
+            <li>
+              <strong>Enable</strong> data endpoints below with the toggle
+              switches
+            </li>
+            <li>
+              <strong>Choose a schedule</strong> — real-time, hourly, daily, or
+              weekly
+            </li>
+            <li>
+              Data flows into your Operations Dashboard automatically
+            </li>
+          </ol>
+          <p className="mt-2 text-xs text-blue-600">
+            HubSpot pipelines are already active via the MCP integration. Other
+            tools will sync via API once connected.
           </p>
         </div>
 
         {/* Data Source Cards */}
-        {toolsWithData.map((tool) => (
-          <div
-            key={tool.id}
-            className="mb-6 rounded-xl border border-gray-200 bg-white shadow-sm"
-          >
-            <div className="flex items-center justify-between border-b border-gray-100 p-5">
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
-                  style={{ backgroundColor: tool.color + "18" }}
-                >
-                  {tool.iconEmoji}
+        {toolsWithData.map((tool) => {
+          const isConnected = tool.status === "connected";
+          return (
+            <div
+              key={tool.id}
+              className={`mb-6 rounded-xl border shadow-sm ${isConnected ? "border-gray-200 bg-white" : "border-gray-200 bg-gray-50"}`}
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 p-5">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-lg"
+                    style={{ backgroundColor: tool.color + "18" }}
+                  >
+                    {tool.iconEmoji}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{tool.name}</h3>
+                    <p className="text-sm text-gray-500">{tool.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{tool.name}</h3>
-                  <p className="text-sm text-gray-500">{tool.description}</p>
+                <div className="flex items-center gap-3">
+                  {isConnected && (
+                    <span className="text-xs text-green-600 font-medium">
+                      {tool.dataEndpoints?.filter(
+                        (ep) => getPipeline(tool.id, ep)?.enabled
+                      ).length ?? 0}
+                      /{tool.dataEndpoints?.length ?? 0} active
+                    </span>
+                  )}
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                      isConnected
+                        ? "border-green-200 bg-green-100 text-green-800"
+                        : "border-gray-200 bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {isConnected ? "Syncing" : "Connect first"}
+                  </span>
                 </div>
               </div>
-              <span
-                className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
-                  tool.status === "connected"
-                    ? "border-green-200 bg-green-100 text-green-800"
-                    : "border-gray-200 bg-gray-100 text-gray-500"
-                }`}
-              >
-                {tool.status === "connected"
-                  ? "Ready to sync"
-                  : "Connect first"}
-              </span>
-            </div>
 
-            <div className="divide-y divide-gray-50">
-              {tool.dataEndpoints?.map((endpoint) => {
-                const pipeline = getPipeline(tool.id, endpoint);
-                return (
-                  <div
-                    key={endpoint}
-                    className="flex items-center justify-between px-5 py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => togglePipeline(tool.id, endpoint)}
-                        disabled={tool.status !== "connected"}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          pipeline?.enabled
-                            ? "bg-green-500"
-                            : "bg-gray-200"
-                        } ${tool.status !== "connected" ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                            pipeline?.enabled
-                              ? "translate-x-6"
-                              : "translate-x-1"
-                          }`}
-                        />
-                      </button>
-                      <span className="text-sm font-medium capitalize text-gray-700">
-                        {endpoint.replace(/_/g, " ")}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {pipeline?.enabled && (
-                        <select
-                          value={pipeline.schedule}
-                          onChange={(e) =>
-                            updateSchedule(
-                              tool.id,
-                              endpoint,
-                              e.target.value as DataPipeline["schedule"]
-                            )
-                          }
-                          className="rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+              <div className="divide-y divide-gray-50">
+                {tool.dataEndpoints?.map((endpoint) => {
+                  const pipeline = getPipeline(tool.id, endpoint);
+                  return (
+                    <div
+                      key={endpoint}
+                      className="flex items-center justify-between px-5 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => togglePipeline(tool.id, endpoint)}
+                          disabled={!isConnected}
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            pipeline?.enabled ? "bg-green-500" : "bg-gray-200"
+                          } ${!isConnected ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                         >
-                          <option value="realtime">Real-time</option>
-                          <option value="hourly">Hourly</option>
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                        </select>
-                      )}
-                      <span className="text-xs text-gray-400">
-                        {pipeline?.lastSync
-                          ? `Last: ${pipeline.lastSync}`
-                          : "Never synced"}
-                      </span>
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                              pipeline?.enabled
+                                ? "translate-x-6"
+                                : "translate-x-1"
+                            }`}
+                          />
+                        </button>
+                        <span className="text-sm font-medium capitalize text-gray-700">
+                          {endpoint.replace(/_/g, " ")}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {pipeline?.enabled && (
+                          <select
+                            value={pipeline.schedule}
+                            onChange={(e) =>
+                              updateSchedule(
+                                tool.id,
+                                endpoint,
+                                e.target.value as DataPipeline["schedule"]
+                              )
+                            }
+                            className="rounded-md border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="realtime">Real-time</option>
+                            <option value="hourly">Hourly</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                          </select>
+                        )}
+                        <span className="text-xs text-gray-400 min-w-[120px] text-right">
+                          {pipeline?.lastSync
+                            ? `Last: ${pipeline.lastSync}`
+                            : "Never synced"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </main>
     </div>
   );
